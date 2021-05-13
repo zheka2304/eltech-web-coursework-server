@@ -20,12 +20,8 @@ public class UserService implements UserDetailsService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public List<ChatUser> getAll() {
-        return this.repository.getAll();
-    }
-
     public ChatUser getByUsername(String login) {
-        return this.repository.getByUsername(login);
+        return this.repository.findByUsername(login);
     }
 
     public ChatUser registerNewUser(String username, String password) {

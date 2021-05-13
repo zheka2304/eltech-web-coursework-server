@@ -26,9 +26,9 @@ public class UserAuthController {
     private final AuthenticationManager authManager;
     private final PasswordEncoder passwordEncoder;
 
-    public UserAuthController(UserService service, PasswordEncoder passwordEncoder) {
+    public UserAuthController(UserService service, AuthenticationManager authManager, PasswordEncoder passwordEncoder) {
         this.service = service;
-        authManager = null;
+        this.authManager = authManager;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -108,8 +108,12 @@ public class UserAuthController {
     }
 
     @PostMapping(path = "/register", produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody Object logout(@RequestBody UserCredentials credentials, HttpServletRequest request) {
+    public @ResponseBody Object logout(@AuthenticationPrincipal ChatUser loggedInUser, @RequestBody UserCredentials credentials, HttpServletRequest request) {
         if (credentials.isDataValid()) {
+            if (loggedInUser != null) {
+                return new LoginOrLogoutResult(false, "already logged in, first logout");
+            }
+
             ChatUser user = service.getByUsername(credentials.getUsername());
             if (user != null) {
                 return new LoginOrLogoutResult(false, "username is already used");

@@ -1,41 +1,25 @@
 package com.eltech.web.server.user.auth;
 
 import com.eltech.web.server.user.ChatUser;
+import org.springframework.data.repository.CrudRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Repository;
 
+import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 
 @Repository
-public class UserRepository {
-    private final List<ChatUser> users = new ArrayList<>();
+public interface UserRepository extends CrudRepository<ChatUser, Long> {
+    ChatUser findByUsername(String username);
 
-    private final PasswordEncoder passwordEncoder;
-
-    public UserRepository(PasswordEncoder passwordEncoder) {
-        this.passwordEncoder = passwordEncoder;
-        this.users.add(new ChatUser("test-uid-1", "Chel", passwordEncoder.encode("1234")));
-        this.users.add(new ChatUser("test-uid-2", "Bruh", passwordEncoder.encode("12345")));
-    }
-
-    public ChatUser getByUsername(String login) {
-        return this.users.stream()
-                .filter(user -> login.equals(user.getUsername()))
-                .findFirst()
-                .orElse(null);
-    }
-
-    public List<ChatUser> getAll() {
-        return this.users;
-    }
-
-    // TODO: make transactional
-    public boolean addUser(ChatUser user) {
-        if (getByUsername(user.getUsername()) != null) {
+    @Transactional
+    default boolean addUser(ChatUser user) {
+        if (findByUsername(user.getUsername()) != null) {
             return false;
         }
-        users.add(user);
+        save(user);
+
         return true;
     }
 }
