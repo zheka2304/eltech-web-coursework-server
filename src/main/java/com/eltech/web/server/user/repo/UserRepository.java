@@ -1,13 +1,10 @@
-package com.eltech.web.server.user.auth;
+package com.eltech.web.server.user.repo;
 
-import com.eltech.web.server.user.ChatUser;
+import com.eltech.web.server.user.entity.ChatUser;
 import org.springframework.data.repository.CrudRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Repository;
 
 import javax.transaction.Transactional;
-import java.util.ArrayList;
-import java.util.List;
 
 @Repository
 public interface UserRepository extends CrudRepository<ChatUser, Long> {

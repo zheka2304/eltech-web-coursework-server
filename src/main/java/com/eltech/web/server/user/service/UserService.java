@@ -1,13 +1,13 @@
-package com.eltech.web.server.user.auth;
+package com.eltech.web.server.user.service;
 
-import com.eltech.web.server.user.ChatUser;
+import com.eltech.web.server.user.entity.ChatUser;
+import com.eltech.web.server.user.repo.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -18,6 +18,15 @@ public class UserService implements UserDetailsService {
     public UserService(UserRepository repository, PasswordEncoder passwordEncoder) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
+    }
+
+    public ChatUser fetch(ChatUser user) {
+        return repository.findById(user.getId()).orElse(null);
+    }
+
+    public ChatUser saveAndFetch(ChatUser user) {
+        repository.save(user);
+        return fetch(user);
     }
 
     public ChatUser getByUsername(String login) {

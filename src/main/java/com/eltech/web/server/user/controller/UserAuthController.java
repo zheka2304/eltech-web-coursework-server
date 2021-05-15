@@ -1,6 +1,7 @@
-package com.eltech.web.server.user.auth;
+package com.eltech.web.server.user.controller;
 
-import com.eltech.web.server.user.ChatUser;
+import com.eltech.web.server.user.entity.ChatUser;
+import com.eltech.web.server.user.service.UserService;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,12 +23,12 @@ import static org.springframework.security.web.context.HttpSessionSecurityContex
 @RestController
 @RequestMapping(path="/api/auth")
 public class UserAuthController {
-    private final UserService service;
+    private final UserService userService;
     private final AuthenticationManager authManager;
     private final PasswordEncoder passwordEncoder;
 
-    public UserAuthController(UserService service, AuthenticationManager authManager, PasswordEncoder passwordEncoder) {
-        this.service = service;
+    public UserAuthController(UserService userService, AuthenticationManager authManager, PasswordEncoder passwordEncoder) {
+        this.userService = userService;
         this.authManager = authManager;
         this.passwordEncoder = passwordEncoder;
     }
@@ -82,7 +83,7 @@ public class UserAuthController {
                 return new LoginOrLogoutResult(false, "already logged in, first logout");
             }
 
-            ChatUser user = service.getByUsername(credentials.getUsername());
+            ChatUser user = userService.getByUsername(credentials.getUsername());
             if (user == null || !passwordEncoder.matches(credentials.getPassword(), user.getPassword())) {
                 return new LoginOrLogoutResult(false, "invalid username or password");
             }
@@ -114,12 +115,12 @@ public class UserAuthController {
                 return new LoginOrLogoutResult(false, "already logged in, first logout");
             }
 
-            ChatUser user = service.getByUsername(credentials.getUsername());
+            ChatUser user = userService.getByUsername(credentials.getUsername());
             if (user != null) {
                 return new LoginOrLogoutResult(false, "username is already used");
             }
 
-            user = service.registerNewUser(credentials.getUsername(), credentials.getPassword());
+            user = userService.registerNewUser(credentials.getUsername(), credentials.getPassword());
             UsernamePasswordAuthenticationToken authReq = new UsernamePasswordAuthenticationToken(user, credentials.getPassword());
             logInUser(request, authReq);
             return new LoginOrLogoutResult(true, null);
@@ -129,6 +130,6 @@ public class UserAuthController {
 
     @GetMapping(path = "/me", produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Object getCurrentUser(@AuthenticationPrincipal ChatUser user, HttpServletRequest request) {
-        return Collections.singletonMap("user", user);
+        return Collections.singletonMap("user", userService.fetch(user));
     }
 }
