@@ -8,6 +8,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.Map;
 
 @RestController
@@ -34,5 +35,14 @@ public class ChatController {
             return null;
         }
         return dialogService.getOrAddDialog(userService.fetch(user), targetUid);
+    }
+
+    @PostMapping(path = "/remove_dialog", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Object removeDialog(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
+        String targetUid = payload.get("target");
+        if (!StringUtils.hasLength(targetUid)) {
+            return Collections.singletonMap("success", false);
+        }
+        return Collections.singletonMap("success", dialogService.removeDialog(userService.fetch(user), targetUid));
     }
 }

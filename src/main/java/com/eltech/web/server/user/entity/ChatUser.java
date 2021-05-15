@@ -20,7 +20,7 @@ public class ChatUser implements UserDetails {
     private String username;
     private String password;
 
-    @OneToMany(mappedBy = "user", cascade = { CascadeType.ALL }, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "user", orphanRemoval = true, cascade = { CascadeType.ALL }, fetch = FetchType.EAGER)
     private List<Dialog> dialogs = new ArrayList<>();
 
     @ManyToMany(cascade = { CascadeType.ALL })

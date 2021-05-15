@@ -42,4 +42,13 @@ public class DialogService {
         // dialog is added, return it
         return getDialog(user, target);
     }
+
+    public boolean removeDialog(ChatUser user, String target) {
+        boolean result = user.getDialogs().removeIf(dialog -> dialog.getTarget().equals(target));
+        if (result) {
+            user.setDialogs(user.getDialogs());
+            userService.save(user);
+        }
+        return result;
+    }
 }

@@ -24,8 +24,12 @@ public class UserService implements UserDetailsService {
         return repository.findById(user.getId()).orElse(null);
     }
 
-    public ChatUser saveAndFetch(ChatUser user) {
+    public void save(ChatUser user) {
         repository.save(user);
+    }
+
+    public ChatUser saveAndFetch(ChatUser user) {
+        save(user);
         return fetch(user);
     }
 
