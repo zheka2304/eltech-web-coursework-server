@@ -15,6 +15,9 @@ public class Dialog {
     @JoinColumn(name="user_id", nullable=false)
     private ChatUser user;
 
+    // time of last activity to sort dialogs
+    private long lastActivityTime;
+
     // for peer-to-peer chat target is just uid
     private String target;
 
@@ -46,6 +49,11 @@ public class Dialog {
         return target;
     }
 
+    public long getLastActivityTime() {
+        return lastActivityTime;
+    }
+
+
     public void setId(Long id) {
         this.id = id;
     }
@@ -59,6 +67,15 @@ public class Dialog {
         targetUserCached = false;
     }
 
+    public void setLastActivityTime(long lastActivityTime) {
+        this.lastActivityTime = lastActivityTime;
+    }
+
+
+    public void updateLastActivityTime() {
+        setLastActivityTime(System.currentTimeMillis());
+    }
+
     public ChatUser getTargetUser(Function<String, ChatUser> supplier, boolean forceReCache) {
         if (!targetUserCached || forceReCache) {
             targetUser = supplier.apply(getTarget());
@@ -66,4 +83,5 @@ public class Dialog {
         }
         return targetUser;
     }
+
 }

@@ -31,11 +31,14 @@ public class DialogService {
     public Dialog getOrAddDialog(ChatUser user, String target) {
         Dialog dialog = getDialog(user, target);
         if (dialog != null) {
+            dialog.updateLastActivityTime();
+            userService.save(user);
             return dialog;
         }
 
         // save dialog and fetch user from database
         dialog = new Dialog(user, target);
+        dialog.updateLastActivityTime();
         user.getDialogs().add(dialog);
         user = userService.saveAndFetch(user);
 

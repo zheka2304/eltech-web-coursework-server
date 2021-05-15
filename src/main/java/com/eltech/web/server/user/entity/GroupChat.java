@@ -10,6 +10,8 @@ public class GroupChat {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
+    private long lastActivityTime;
+
     @ManyToMany
     @JoinTable(
             name = "group_chat_users",
@@ -23,6 +25,10 @@ public class GroupChat {
         return id;
     }
 
+    public long getLastActivityTime() {
+        return lastActivityTime;
+    }
+
     public List<ChatUser> getUsers() {
         return users;
     }
@@ -32,7 +38,16 @@ public class GroupChat {
         this.id = id;
     }
 
+    public void setLastActivityTime(long lastActivityTime) {
+        this.lastActivityTime = lastActivityTime;
+    }
+
     public void setUsers(List<ChatUser> users) {
         this.users = users;
+    }
+
+
+    public void updateLastActivityTime() {
+        setLastActivityTime(System.currentTimeMillis());
     }
 }
