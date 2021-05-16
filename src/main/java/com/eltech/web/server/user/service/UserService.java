@@ -21,11 +21,16 @@ public class UserService implements UserDetailsService {
     }
 
     public ChatUser fetch(ChatUser user) {
+        if (user == null) {
+            return null;
+        }
         return repository.findById(user.getId()).orElse(null);
     }
 
     public void save(ChatUser user) {
-        repository.save(user);
+        if (user != null) {
+            repository.save(user);
+        }
     }
 
     public ChatUser saveAndFetch(ChatUser user) {

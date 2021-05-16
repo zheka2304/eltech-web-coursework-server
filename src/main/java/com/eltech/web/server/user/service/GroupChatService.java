@@ -21,11 +21,16 @@ public class GroupChatService {
     }
 
     public GroupChat fetch(GroupChat chat) {
+        if (chat == null) {
+            return null;
+        }
         return groupChatRepository.findById(chat.getId()).orElse(null);
     }
 
     public void save(GroupChat chat) {
-        groupChatRepository.save(chat);
+        if (chat != null) {
+            groupChatRepository.save(chat);
+        }
     }
 
     public GroupChat saveAndFetch(GroupChat chat) {
