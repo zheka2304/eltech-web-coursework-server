@@ -86,7 +86,7 @@ public class ChatController {
         }
     }
 
-    private static class UniversalChatWrap {
+    private class UniversalChatWrap {
         private final String chatId;
         private final ChatType chatType;
         private final String chatTitle;
@@ -96,9 +96,12 @@ public class ChatController {
         public UniversalChatWrap(ChatUser user, Dialog dialog) {
             chatId = ChatType.DIALOG.idPrefix + dialog.getId();
             chatType = ChatType.DIALOG;
-            chatTitle = dialog.getTarget();
             targets = Collections.singletonList(dialog.getTarget());
             lastActivityTime = dialog.getLastActivityTime();
+
+            String targetUid = dialog.getTarget();
+            ChatUser targetUser = userService.getByUid(targetUid);
+            chatTitle = targetUser != null ? targetUser.getUsername() : targetUid;
         }
 
         public UniversalChatWrap(ChatUser user, GroupChat groupChat) {
