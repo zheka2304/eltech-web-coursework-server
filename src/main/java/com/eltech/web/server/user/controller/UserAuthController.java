@@ -14,8 +14,11 @@ import org.springframework.security.web.authentication.logout.SecurityContextLog
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import java.util.Arrays;
 import java.util.Collections;
 
 import static org.springframework.security.web.context.HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY;
@@ -68,7 +71,7 @@ public class UserAuthController {
         }
     }
 
-    private void logInUser(HttpServletRequest request, UsernamePasswordAuthenticationToken authReq) {
+    private void logInUser(HttpServletRequest request, HttpServletResponse response, UsernamePasswordAuthenticationToken authReq) {
         Authentication auth = authManager.authenticate(authReq);
         SecurityContext sc = SecurityContextHolder.getContext();
         sc.setAuthentication(auth);
@@ -77,7 +80,7 @@ public class UserAuthController {
     }
 
     @PostMapping(path = "/login", produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody Object login(@AuthenticationPrincipal ChatUser loggedInUser, @RequestBody UserCredentials credentials, HttpServletRequest request) {
+    public @ResponseBody Object login(@AuthenticationPrincipal ChatUser loggedInUser, @RequestBody UserCredentials credentials, HttpServletRequest request, HttpServletResponse response) {
         if (credentials.isDataValid()) {
             if (loggedInUser != null) {
                 return new LoginOrLogoutResult(false, "already logged in, first logout");
@@ -89,7 +92,7 @@ public class UserAuthController {
             }
 
             UsernamePasswordAuthenticationToken authReq = new UsernamePasswordAuthenticationToken(user, credentials.getPassword());
-            logInUser(request, authReq);
+            logInUser(request, response, authReq);
             return new LoginOrLogoutResult(true, null);
         }
         return new LoginOrLogoutResult(false, "non-empty strings must be provided both for username and password");
@@ -109,7 +112,7 @@ public class UserAuthController {
     }
 
     @PostMapping(path = "/register", produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody Object logout(@AuthenticationPrincipal ChatUser loggedInUser, @RequestBody UserCredentials credentials, HttpServletRequest request) {
+    public @ResponseBody Object logout(@AuthenticationPrincipal ChatUser loggedInUser, @RequestBody UserCredentials credentials, HttpServletRequest request, HttpServletResponse response) {
         if (credentials.isDataValid()) {
             if (loggedInUser != null) {
                 return new LoginOrLogoutResult(false, "already logged in, first logout");
@@ -122,7 +125,7 @@ public class UserAuthController {
 
             user = userService.registerNewUser(credentials.getUsername(), credentials.getPassword());
             UsernamePasswordAuthenticationToken authReq = new UsernamePasswordAuthenticationToken(user, credentials.getPassword());
-            logInUser(request, authReq);
+            logInUser(request, response, authReq);
             return new LoginOrLogoutResult(true, null);
         }
         return new LoginOrLogoutResult(false, "non-empty strings must be provided both for username and password");
