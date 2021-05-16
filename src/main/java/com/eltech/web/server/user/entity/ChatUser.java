@@ -125,4 +125,23 @@ public class ChatUser implements UserDetails {
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return new HashSet<>();
     }
+
+
+    public Dialog getDialog(long id) {
+        for (Dialog dialog : getDialogs()) {
+            if (dialog.getId() == id) {
+                return dialog;
+            }
+        }
+        return null;
+    }
+
+    public GroupChat getGroupChat(long id) {
+        for (GroupChat groupChat : getGroupChats()) {
+            if (groupChat.getId() == id) {
+                return groupChat;
+            }
+        }
+        return null;
+    }
 }

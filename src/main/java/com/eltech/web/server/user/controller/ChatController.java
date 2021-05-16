@@ -4,6 +4,7 @@ import com.eltech.web.server.user.entity.ChatUser;
 import com.eltech.web.server.user.entity.Dialog;
 import com.eltech.web.server.user.entity.GroupChat;
 import com.eltech.web.server.user.service.DialogService;
+import com.eltech.web.server.user.service.GroupChatService;
 import com.eltech.web.server.user.service.UserService;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,10 +20,12 @@ import java.util.stream.Stream;
 public class ChatController {
     private final UserService userService;
     private final DialogService dialogService;
+    private final GroupChatService groupChatService;
 
-    public ChatController(UserService userService, DialogService dialogService) {
+    public ChatController(UserService userService, DialogService dialogService, GroupChatService groupChatService) {
         this.userService = userService;
         this.dialogService = dialogService;
+        this.groupChatService = groupChatService;
     }
 
 
@@ -86,12 +89,14 @@ public class ChatController {
     private static class UniversalChatWrap {
         private final String chatId;
         private final ChatType chatType;
+        private final String chatTitle;
         private final long lastActivityTime;
         private final List<String> targets;
 
         public UniversalChatWrap(ChatUser user, Dialog dialog) {
             chatId = ChatType.DIALOG.idPrefix + dialog.getId();
             chatType = ChatType.DIALOG;
+            chatTitle = dialog.getTarget();
             targets = Collections.singletonList(dialog.getTarget());
             lastActivityTime = dialog.getLastActivityTime();
         }
@@ -99,8 +104,9 @@ public class ChatController {
         public UniversalChatWrap(ChatUser user, GroupChat groupChat) {
             chatId = ChatType.GROUP_CHAT.idPrefix + groupChat.getId();
             chatType = ChatType.GROUP_CHAT;
+            chatTitle = groupChat.getName();
             targets = groupChat.getUsers().stream()
-                    .filter(usr -> usr.getId().equals(user.getId()))
+                    .filter(usr -> !usr.getId().equals(user.getId()))
                     .map(ChatUser::getUid)
                     .collect(Collectors.toList());
             lastActivityTime = groupChat.getLastActivityTime();
@@ -112,6 +118,10 @@ public class ChatController {
 
         public ChatType getChatType() {
             return chatType;
+        }
+
+        public String getChatTitle() {
+            return chatTitle;
         }
 
         public List<String> getTargets() {
@@ -143,28 +153,36 @@ public class ChatController {
         user = userService.fetch(user);
         switch (chatId.getType()) {
             case DIALOG -> {
-                for (Dialog dialog : user.getDialogs()) {
-                    if (Objects.equals(chatId.id, dialog.getId())) {
-                        return new UniversalChatWrap(user, dialog);
-                    }
-                }
-                return null;
+                Dialog dialog = user.getDialog(chatId.getId());
+                return dialog != null ? new UniversalChatWrap(user, dialog) : null;
             }
             case GROUP_CHAT -> {
-                for (GroupChat groupChat : user.getGroupChats()) {
-                    if (Objects.equals(chatId.id, groupChat.getId())) {
-                        return new UniversalChatWrap(user, groupChat);
-                    }
-                }
-                return null;
+                GroupChat groupChat = user.getGroupChat(chatId.getId());
+                return groupChat != null ? new UniversalChatWrap(user, groupChat) : null;
             }
         }
 
         return null;
     }
 
+
+    private class ChatMemberInfo {
+        public final String targetUid;
+        public final ChatUser chatUser;
+
+        public ChatMemberInfo(String targetUid) {
+            this.targetUid = targetUid;
+            this.chatUser = userService.getByUid(targetUid);
+        }
+
+        public ChatMemberInfo(ChatUser user) {
+            this.targetUid = user.getUid();
+            this.chatUser = user;
+        }
+    }
+
     @GetMapping(path = "/get_members", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<String> getChatMemebers(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
+    public List<ChatMemberInfo> getChatMembers(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
         ChatId chatId = new ChatId(payload.get("chatId"));
         if (!chatId.isValid()) {
             return Collections.emptyList();
@@ -173,26 +191,54 @@ public class ChatController {
         user = userService.fetch(user);
         switch (chatId.getType()) {
             case DIALOG -> {
-                for (Dialog dialog : user.getDialogs()) {
-                    if (Objects.equals(chatId.id, dialog.getId())) {
-                        List<String> result = new ArrayList<>();
-                        result.add(dialog.getUser().getUid());
-                        result.add(dialog.getTarget());
-                        return result;
-                    }
+                Dialog dialog = user.getDialog(chatId.getId());
+                if (dialog != null) {
+                    List<ChatMemberInfo> result = new ArrayList<>();
+                    result.add(new ChatMemberInfo(dialog.getUser()));
+                    result.add(new ChatMemberInfo(dialog.getTarget()));
+                    return result;
                 }
                 return Collections.emptyList();
             }
             case GROUP_CHAT -> {
-                for (GroupChat groupChat : user.getGroupChats()) {
-                    if (Objects.equals(chatId.id, groupChat.getId())) {
-                        return groupChat.getUsers().stream().map(ChatUser::getUid).collect(Collectors.toList());
-                    }
+                GroupChat groupChat = user.getGroupChat(chatId.getId());
+                if (groupChat != null) {
+                    return groupChat.getUsers().stream().map(ChatMemberInfo::new).collect(Collectors.toList());
                 }
                 return Collections.emptyList();
             }
         }
         return Collections.emptyList();
+    }
+
+    @PostMapping(path = "/update_last_activity", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Object> updateLastActivity(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
+        ChatId chatId = new ChatId(payload.get("chatId"));
+        if (!chatId.isValid()) {
+            return Collections.singletonMap("success", false);
+        }
+
+        user = userService.fetch(user);
+        boolean success = false;
+
+        switch (chatId.getType()) {
+            case DIALOG -> {
+                Dialog dialog = user.getDialog(chatId.getId());
+                if (dialog != null) {
+                    dialog.updateLastActivityTime();
+                    success = true;
+                }
+            }
+            case GROUP_CHAT -> {
+                GroupChat groupChat = user.getGroupChat(chatId.getId());
+                if (groupChat != null) {
+                    groupChat.updateLastActivityTime();
+                    success = true;
+                }
+            }
+        }
+
+        return Collections.singletonMap("success", success);
     }
 
     @PostMapping(path = "/add_dialog", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -212,5 +258,103 @@ public class ChatController {
             return Collections.singletonMap("success", false);
         }
         return Collections.singletonMap("success", dialogService.removeDialog(userService.fetch(user), targetUid));
+    }
+
+    @PostMapping(path = "/create_group", produces = MediaType.APPLICATION_JSON_VALUE)
+    public UniversalChatWrap createGroupChat(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
+        String chatName = payload.get("chatName");
+        if (!StringUtils.hasLength(chatName)) {
+            return null;
+        }
+
+        user = userService.fetch(user);
+        return new UniversalChatWrap(user, groupChatService.createGroupChat(user, chatName));
+    }
+
+    @PostMapping(path = "/join_group", produces = MediaType.APPLICATION_JSON_VALUE)
+    public UniversalChatWrap joinGroupChat(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
+        String inviteUid = payload.get("inviteUid");
+        if (!StringUtils.hasLength(inviteUid)) {
+            return null;
+        }
+
+        user = userService.fetch(user);
+        return new UniversalChatWrap(user, groupChatService.joinGroupChat(user, inviteUid));
+    }
+
+    @PostMapping(path = "/leave_group", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Object> leaveGroupChat(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
+        ChatId chatId = new ChatId(payload.get("chatId"));
+        if (!chatId.isValid() || chatId.getType() != ChatType.GROUP_CHAT) {
+            return Collections.singletonMap("success", false);
+        }
+
+        GroupChat chat = groupChatService.getById(chatId.getId());
+        if (chat == null) {
+            return Collections.singletonMap("success", false);
+        }
+
+        user = userService.fetch(user);
+        return Collections.singletonMap("success", groupChatService.leaveGroupChat(user, chat));
+    }
+
+    private GroupChat getGroupChatByUserAndCheck(ChatUser user, ChatId chatId) {
+        if (!chatId.isValid() || chatId.getType() != ChatType.GROUP_CHAT) {
+            return null;
+        }
+
+        GroupChat chat = groupChatService.getById(chatId.getId());
+        if (chat == null) {
+            return null;
+        }
+
+        if (!chat.hasUser(user)) {
+            return null;
+        }
+
+        return chat;
+    }
+
+    @GetMapping(path = "/get_invite_uid", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Object> getGroupChatInviteUid(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
+        ChatId chatId = new ChatId(payload.get("chatId"));
+        user = userService.fetch(user);
+        GroupChat chat = getGroupChatByUserAndCheck(user, chatId);
+
+        if (chat == null || !chat.canUserAccessInviteUid(user)) {
+            return Collections.singletonMap("inviteUid", null);
+        }
+        return Collections.singletonMap("inviteUid", chat.getInviteUid());
+    }
+
+    @PostMapping(path = "/revoke_invite_uid", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Object> revokeGroupChatInviteUid(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
+        ChatId chatId = new ChatId(payload.get("chatId"));
+        user = userService.fetch(user);
+        GroupChat chat = getGroupChatByUserAndCheck(user, chatId);
+
+        if (chat == null || !chat.canUserAccessInviteUid(user)) {
+            return Collections.singletonMap("inviteUid", null);
+        }
+        return Collections.singletonMap("inviteUid", chat.generateNewInviteId());
+    }
+
+    @PostMapping(path = "/rename_group", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Object> renameGroupChat(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
+        ChatId chatId = new ChatId(payload.get("chatId"));
+        String newChatName = payload.get("newChatName");
+        if (!StringUtils.hasLength(newChatName)) {
+            return Collections.singletonMap("success", false);
+        }
+
+        user = userService.fetch(user);
+        GroupChat chat = getGroupChatByUserAndCheck(user, chatId);
+        if (chat == null || !chat.canUserRenameChat(user)) {
+            return Collections.singletonMap("success", false);
+        }
+
+        chat.setName(newChatName);
+        groupChatService.save(chat);
+        return Collections.singletonMap("success", true);
     }
 }

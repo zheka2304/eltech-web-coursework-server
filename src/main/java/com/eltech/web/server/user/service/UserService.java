@@ -33,13 +33,22 @@ public class UserService implements UserDetailsService {
         return fetch(user);
     }
 
+    public ChatUser getByUid(String uid) {
+        return this.repository.findByUid(uid);
+    }
+
     public ChatUser getByUsername(String login) {
         return this.repository.findByUsername(login);
     }
 
     public ChatUser registerNewUser(String username, String password) {
         ChatUser user = new ChatUser(UUID.randomUUID().toString(), username, passwordEncoder.encode(password));
-        return repository.addUser(user) ? user : null;
+
+        if (repository.findByUsername(user.getUsername()) != null) {
+            return null;
+        }
+        save(user);
+        return getByUid(user.getUid());
     }
 
     @Override

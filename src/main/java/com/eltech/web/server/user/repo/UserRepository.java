@@ -10,13 +10,5 @@ import javax.transaction.Transactional;
 public interface UserRepository extends CrudRepository<ChatUser, Long> {
     ChatUser findByUsername(String username);
 
-    @Transactional
-    default boolean addUser(ChatUser user) {
-        if (findByUsername(user.getUsername()) != null) {
-            return false;
-        }
-        save(user);
-
-        return true;
-    }
+    ChatUser findByUid(String uid);
 }

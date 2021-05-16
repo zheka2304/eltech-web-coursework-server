@@ -6,6 +6,6 @@ import org.springframework.data.repository.CrudRepository;
 
 import java.util.List;
 
-public interface ChatRepository extends CrudRepository<GroupChat, Long> {
-    List<GroupChat> findChatByUsersContaining(ChatUser user);
+public interface GroupChatRepository extends CrudRepository<GroupChat, Long> {
+    GroupChat findGroupChatByInviteUid(String inviteUid);
 }
