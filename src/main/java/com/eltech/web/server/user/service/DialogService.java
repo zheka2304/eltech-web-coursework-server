@@ -6,6 +6,7 @@ import com.eltech.web.server.user.repo.UserRepository;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
+import java.util.Objects;
 
 @Service
 public class DialogService {
@@ -46,8 +47,8 @@ public class DialogService {
         return getDialog(user, target);
     }
 
-    public boolean removeDialog(ChatUser user, String target) {
-        boolean result = user.getDialogs().removeIf(dialog -> dialog.getTarget().equals(target));
+    public boolean removeDialog(ChatUser user, Dialog dialog) {
+        boolean result = user.getDialogs().removeIf(_dialog -> Objects.equals(dialog.getId(), _dialog.getId()));
         if (result) {
             user.setDialogs(user.getDialogs());
             userService.save(user);

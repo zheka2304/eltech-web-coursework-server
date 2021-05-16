@@ -254,15 +254,6 @@ public class ChatController {
         return new UniversalChatWrap(user, dialogService.getOrAddDialog(user, targetUid));
     }
 
-    @PostMapping(path = "/remove_dialog", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map<String, Object> removeDialog(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
-        String targetUid = payload.get("target");
-        if (!StringUtils.hasLength(targetUid)) {
-            return Collections.singletonMap("success", false);
-        }
-        return Collections.singletonMap("success", dialogService.removeDialog(userService.fetch(user), targetUid));
-    }
-
     @PostMapping(path = "/create_group", produces = MediaType.APPLICATION_JSON_VALUE)
     public UniversalChatWrap createGroupChat(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
         String chatName = payload.get("chatName");
@@ -282,23 +273,8 @@ public class ChatController {
         }
 
         user = userService.fetch(user);
-        return new UniversalChatWrap(user, groupChatService.joinGroupChat(user, inviteUid));
-    }
-
-    @PostMapping(path = "/leave_group", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map<String, Object> leaveGroupChat(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
-        ChatId chatId = new ChatId(payload.get("chatId"));
-        if (!chatId.isValid() || chatId.getType() != ChatType.GROUP_CHAT) {
-            return Collections.singletonMap("success", false);
-        }
-
-        GroupChat chat = groupChatService.getById(chatId.getId());
-        if (chat == null) {
-            return Collections.singletonMap("success", false);
-        }
-
-        user = userService.fetch(user);
-        return Collections.singletonMap("success", groupChatService.leaveGroupChat(user, chat));
+        GroupChat chat = groupChatService.joinGroupChat(user, inviteUid);
+        return chat != null ? new UniversalChatWrap(user, chat) : null;
     }
 
     private GroupChat getGroupChatByUserAndCheck(ChatUser user, ChatId chatId) {
@@ -359,5 +335,31 @@ public class ChatController {
         chat.setName(newChatName);
         groupChatService.save(chat);
         return Collections.singletonMap("success", true);
+    }
+
+    @PostMapping(path = "/leave", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Object> leaveChat(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
+        ChatId chatId = new ChatId(payload.get("chatId"));
+        if (!chatId.isValid()) {
+            return Collections.singletonMap("success", false);
+        }
+
+        user = userService.fetch(user);
+        switch (chatId.getType()) {
+            case DIALOG -> {
+                Dialog dialog = user.getDialog(chatId.getId());
+                if (dialog != null) {
+                    return Collections.singletonMap("success", dialogService.removeDialog(user, dialog));
+                }
+            }
+            case GROUP_CHAT -> {
+                GroupChat groupChat = user.getGroupChat(chatId.getId());
+                if (groupChat != null) {
+                    return Collections.singletonMap("success", groupChatService.leaveGroupChat(user, groupChat));
+                }
+            }
+        }
+
+        return Collections.singletonMap("success", false);
     }
 }
