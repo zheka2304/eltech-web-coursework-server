@@ -15,14 +15,15 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
+                .cors().and()
                 .sessionManagement()
                     .sessionCreationPolicy(SessionCreationPolicy.NEVER)
                 .and()
                     .authorizeRequests()
                         .antMatchers("/socket", "/users", "/api/auth/**").permitAll()
                         .anyRequest().authenticated()
-                .and().httpBasic()
-                .and().csrf().disable();
+                .and().httpBasic().disable()
+                .csrf().disable();
     }
 
     @Bean(name = BeanIds.AUTHENTICATION_MANAGER)
