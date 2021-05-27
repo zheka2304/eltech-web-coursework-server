@@ -21,7 +21,7 @@ public class UserInfoController {
     }
 
     @GetMapping(path = "/get", produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody Map<String, Object> getCurrentUser(@RequestBody Map<String, String> payload) {
-        return Collections.singletonMap("user", userService.getByUid(payload.get("uid")));
+    public @ResponseBody Map<String, Object> getCurrentUser(@RequestParam String uid) {
+        return Collections.singletonMap("user", userService.getByUid(uid));
     }
 }

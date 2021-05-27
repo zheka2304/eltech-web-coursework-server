@@ -147,8 +147,8 @@ public class ChatController {
     }
 
     @GetMapping(path = "/get", produces = MediaType.APPLICATION_JSON_VALUE)
-    public UniversalChatWrap getChatById(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
-        ChatId chatId = new ChatId(payload.get("chatId"));
+    public UniversalChatWrap getChatById(@AuthenticationPrincipal ChatUser user, @RequestParam(name="chatId") String parChatId) {
+        ChatId chatId = new ChatId(parChatId);
         if (!chatId.isValid()) {
             return null;
         }
@@ -185,8 +185,8 @@ public class ChatController {
     }
 
     @GetMapping(path = "/get_members", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<ChatMemberInfo> getChatMembers(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
-        ChatId chatId = new ChatId(payload.get("chatId"));
+    public List<ChatMemberInfo> getChatMembers(@AuthenticationPrincipal ChatUser user, @RequestParam(name="chatId") String parChatId) {
+        ChatId chatId = new ChatId(parChatId);
         if (!chatId.isValid()) {
             return Collections.emptyList();
         }
@@ -295,10 +295,9 @@ public class ChatController {
     }
 
     @GetMapping(path = "/get_invite_uid", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map<String, Object> getGroupChatInviteUid(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
-        ChatId chatId = new ChatId(payload.get("chatId"));
+    public Map<String, Object> getGroupChatInviteUid(@AuthenticationPrincipal ChatUser user, @RequestParam String chatId) {
         user = userService.fetch(user);
-        GroupChat chat = getGroupChatByUserAndCheck(user, chatId);
+        GroupChat chat = getGroupChatByUserAndCheck(user, new ChatId(chatId));
 
         if (chat == null || !chat.canUserAccessInviteUid(user)) {
             return Collections.singletonMap("inviteUid", null);
@@ -307,15 +306,17 @@ public class ChatController {
     }
 
     @PostMapping(path = "/revoke_invite_uid", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map<String, Object> revokeGroupChatInviteUid(@AuthenticationPrincipal ChatUser user, @RequestBody Map<String, String> payload) {
-        ChatId chatId = new ChatId(payload.get("chatId"));
+    public Map<String, Object> revokeGroupChatInviteUid(@AuthenticationPrincipal ChatUser user, @RequestParam String chatId) {
         user = userService.fetch(user);
-        GroupChat chat = getGroupChatByUserAndCheck(user, chatId);
+        GroupChat chat = getGroupChatByUserAndCheck(user, new ChatId(chatId));
 
         if (chat == null || !chat.canUserAccessInviteUid(user)) {
             return Collections.singletonMap("inviteUid", null);
         }
-        return Collections.singletonMap("inviteUid", chat.generateNewInviteId());
+
+        String newInviteUid = chat.generateNewInviteId();
+        groupChatService.save(chat);
+        return Collections.singletonMap("inviteUid", newInviteUid);
     }
 
     @PostMapping(path = "/rename_group", produces = MediaType.APPLICATION_JSON_VALUE)
