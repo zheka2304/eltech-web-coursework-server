@@ -7,6 +7,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +45,7 @@ public class SocketHandler extends TextWebSocketHandler {
     private final Object mapLock = new Object();
     private final Map<String, PeerSession> uninitializedSessions = new HashMap<>();
     private final Map<String, PeerSession> peerSessionBySessionId = new HashMap<>();
-    private final Map<String, PeerSession> peerSessionByUid = new HashMap<>();
+    private final Map<String, List<PeerSession>> peerSessionByUid = new HashMap<>();
 
     private static final int EXPIRED_SESSION_RELEASE_INTERVAL = 5000;
 
@@ -70,7 +71,9 @@ public class SocketHandler extends TextWebSocketHandler {
                 synchronized (mapLock) {
                     releasedCount += releaseExpiredSessions(uninitializedSessions);
                     releasedCount += releaseExpiredSessions(peerSessionBySessionId);
-                    releaseExpiredSessions(peerSessionByUid);
+
+                    peerSessionByUid.forEach((key, value) -> value.removeIf(PeerSession::isExpired));
+                    peerSessionByUid.entrySet().removeIf(entry -> entry.getValue().isEmpty());
                 }
                 if (releasedCount > 0) {
                     System.out.println("released " + releasedCount + " expired socket sessions, " + (uninitializedSessions.size() + peerSessionBySessionId.size()) + " sessions remaining");
@@ -115,7 +118,7 @@ public class SocketHandler extends TextWebSocketHandler {
                         // System.out.println("initialized peer " + event.uid);
                         peer.setPeerUid(event.uid);
                         peerSessionBySessionId.put(session.getId(), peer);
-                        peerSessionByUid.put(peer.getPeerUid(), peer);
+                        peerSessionByUid.computeIfAbsent(peer.getPeerUid(), key -> new ArrayList<>()).add(peer);
                     }
                 }
             } catch (JsonParseException e) {
@@ -127,19 +130,20 @@ public class SocketHandler extends TextWebSocketHandler {
 
                 synchronized (mapLock) {
                     // check if sender id is valid
-                    PeerSession sender = peerSessionByUid.get(event.senderUid);
-                    if (sender == null || sender != peerSessionBySessionId.get(session.getId())) {
+                    List<PeerSession> possibleSenders = peerSessionByUid.get(event.senderUid);
+                    if (possibleSenders == null || !possibleSenders.contains(peerSessionBySessionId.get(session.getId()))) {
                         return;
                     }
 
                     // forward event to target
-                    PeerSession target = peerSessionByUid.get(event.targetUid);
-                    if (target != null) {
-                        try {
-                            target.session.sendMessage(message);
-                            // System.out.println("sending message from " + event.senderUid + " to " + event.targetUid + ", payload: " + message.getPayload());
-                        } catch (IOException e) {
-                            e.printStackTrace();
+                    List<PeerSession> targets = peerSessionByUid.get(event.targetUid);
+                    if (targets != null) {for (PeerSession target : targets) {
+                            try {
+                                target.session.sendMessage(message);
+                                // System.out.println("sending message from " + event.senderUid + " to " + event.targetUid + ", payload: " + message.getPayload());
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                         }
                     }
                 }
