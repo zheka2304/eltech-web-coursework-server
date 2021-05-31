@@ -172,15 +172,18 @@ public class ChatController {
     private class ChatMemberInfo {
         public final String targetUid;
         public final ChatUser chatUser;
+        public final boolean isCreator;
 
-        public ChatMemberInfo(String targetUid) {
+        public ChatMemberInfo(String targetUid, boolean isCreator) {
             this.targetUid = targetUid;
             this.chatUser = userService.getByUid(targetUid);
+            this.isCreator = isCreator;
         }
 
-        public ChatMemberInfo(ChatUser user) {
+        public ChatMemberInfo(ChatUser user, boolean isCreator) {
             this.targetUid = user.getUid();
             this.chatUser = user;
+            this.isCreator = isCreator;
         }
     }
 
@@ -197,8 +200,8 @@ public class ChatController {
                 Dialog dialog = user.getDialog(chatId.getId());
                 if (dialog != null) {
                     List<ChatMemberInfo> result = new ArrayList<>();
-                    result.add(new ChatMemberInfo(dialog.getUser()));
-                    result.add(new ChatMemberInfo(dialog.getTarget()));
+                    result.add(new ChatMemberInfo(dialog.getUser(), false));
+                    result.add(new ChatMemberInfo(dialog.getTarget(), false));
                     return result;
                 }
                 return Collections.emptyList();
@@ -206,7 +209,7 @@ public class ChatController {
             case GROUP_CHAT -> {
                 GroupChat groupChat = user.getGroupChat(chatId.getId());
                 if (groupChat != null) {
-                    return groupChat.getUsers().stream().map(ChatMemberInfo::new).collect(Collectors.toList());
+                    return groupChat.getUsers().stream().map(usr -> new ChatMemberInfo(usr, groupChat.isCreator(usr))).collect(Collectors.toList());
                 }
                 return Collections.emptyList();
             }
