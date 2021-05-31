@@ -83,12 +83,12 @@ public class UserAuthController {
     public @ResponseBody Object login(@AuthenticationPrincipal ChatUser loggedInUser, @RequestBody UserCredentials credentials, HttpServletRequest request, HttpServletResponse response) {
         if (credentials.isDataValid()) {
             if (loggedInUser != null) {
-                return new LoginOrLogoutResult(false, "already logged in, first logout");
+                return new LoginOrLogoutResult(false, "Вы уже зашли в аккаунт");
             }
 
             ChatUser user = userService.getByUsername(credentials.getUsername());
             if (user == null || !passwordEncoder.matches(credentials.getPassword(), user.getPassword())) {
-                return new LoginOrLogoutResult(false, "invalid username or password");
+                return new LoginOrLogoutResult(false, "Неправильное имя пользователя или пароль");
             }
 
             UsernamePasswordAuthenticationToken authReq = new UsernamePasswordAuthenticationToken(user, credentials.getPassword());
@@ -101,7 +101,7 @@ public class UserAuthController {
     @PostMapping(path = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Object logout(@AuthenticationPrincipal ChatUser user, HttpServletRequest request) {
         if (user == null) {
-            return new LoginOrLogoutResult(false, "not logged in");
+            return new LoginOrLogoutResult(false, "Вы не зашли в аккаунт");
         }
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null){
@@ -115,12 +115,12 @@ public class UserAuthController {
     public @ResponseBody Object logout(@AuthenticationPrincipal ChatUser loggedInUser, @RequestBody UserCredentials credentials, HttpServletRequest request, HttpServletResponse response) {
         if (credentials.isDataValid()) {
             if (loggedInUser != null) {
-                return new LoginOrLogoutResult(false, "already logged in, first logout");
+                return new LoginOrLogoutResult(false, "Вы уже зашли в аккаунт");
             }
 
             ChatUser user = userService.getByUsername(credentials.getUsername());
             if (user != null) {
-                return new LoginOrLogoutResult(false, "username is already used");
+                return new LoginOrLogoutResult(false, "Имя пользователя уже занято");
             }
 
             user = userService.registerNewUser(credentials.getUsername(), credentials.getPassword());
