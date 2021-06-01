@@ -232,6 +232,7 @@ public class ChatController {
                 Dialog dialog = user.getDialog(chatId.getId());
                 if (dialog != null) {
                     dialog.updateLastActivityTime();
+                    userService.save(user);
                     success = true;
                 }
             }
@@ -239,6 +240,7 @@ public class ChatController {
                 GroupChat groupChat = user.getGroupChat(chatId.getId());
                 if (groupChat != null) {
                     groupChat.updateLastActivityTime();
+                    groupChatService.save(groupChat);
                     success = true;
                 }
             }
