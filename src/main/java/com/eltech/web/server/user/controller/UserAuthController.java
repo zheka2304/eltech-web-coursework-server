@@ -14,12 +14,12 @@ import org.springframework.security.web.authentication.logout.SecurityContextLog
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
+import java.util.Objects;
 
 import static org.springframework.security.web.context.HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY;
 
@@ -61,11 +61,11 @@ public class UserAuthController {
         }
     }
 
-    private static class LoginOrLogoutResult {
+    private static class SuccessOrErrorResult {
         public final boolean success;
         public final String error;
 
-        private LoginOrLogoutResult(boolean success, String error) {
+        private SuccessOrErrorResult(boolean success, String error) {
             this.success = success;
             this.error = error;
         }
@@ -83,52 +83,93 @@ public class UserAuthController {
     public @ResponseBody Object login(@AuthenticationPrincipal ChatUser loggedInUser, @RequestBody UserCredentials credentials, HttpServletRequest request, HttpServletResponse response) {
         if (credentials.isDataValid()) {
             if (loggedInUser != null) {
-                return new LoginOrLogoutResult(false, "Вы уже зашли в аккаунт");
+                return new SuccessOrErrorResult(false, "Вы уже зашли в аккаунт");
             }
 
             ChatUser user = userService.getByUsername(credentials.getUsername());
             if (user == null || !passwordEncoder.matches(credentials.getPassword(), user.getPassword())) {
-                return new LoginOrLogoutResult(false, "Неправильное имя пользователя или пароль");
+                return new SuccessOrErrorResult(false, "Неправильное имя пользователя или пароль");
             }
 
             UsernamePasswordAuthenticationToken authReq = new UsernamePasswordAuthenticationToken(user, credentials.getPassword());
             logInUser(request, response, authReq);
-            return new LoginOrLogoutResult(true, null);
+            return new SuccessOrErrorResult(true, null);
         }
-        return new LoginOrLogoutResult(false, "non-empty strings must be provided both for username and password");
+        return new SuccessOrErrorResult(false, "non-empty strings must be provided both for username and password");
     }
 
     @PostMapping(path = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Object logout(@AuthenticationPrincipal ChatUser user, HttpServletRequest request) {
         if (user == null) {
-            return new LoginOrLogoutResult(false, "Вы не зашли в аккаунт");
+            return new SuccessOrErrorResult(false, "Вы не зашли в аккаунт");
         }
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null){
             new SecurityContextLogoutHandler().logout(request, null, auth);
         }
         SecurityContextHolder.getContext().setAuthentication(null);
-        return new LoginOrLogoutResult(true, null);
+        return new SuccessOrErrorResult(true, null);
+    }
+
+    @PostMapping(path = "/edit_account", produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody Object renameUser(@AuthenticationPrincipal ChatUser user, HttpServletRequest request, @RequestBody Map<String, Object> payload) {
+        user = userService.fetch(user);
+        if (user == null) {
+            return new SuccessOrErrorResult(false, "Вы не зашли в аккаунт");
+        }
+
+        String error = null;
+
+        String username = Objects.toString(payload.getOrDefault("username", ""));
+        if (StringUtils.hasLength(username)) {
+            error = userService.changeUsername(user, username) ? null : "Имя не уникально";
+        }
+
+        String password = Objects.toString(payload.getOrDefault("password", ""));
+        if (StringUtils.hasLength(password)) {
+            userService.changePassword(user, password);
+        }
+
+        if (payload.containsKey("changeUid")) {
+            userService.generateNewUid(user);
+        }
+
+        return new SuccessOrErrorResult(error == null, error);
+    }
+
+    @PostMapping(path = "/terminate_account", produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody Object terminateAccount(@AuthenticationPrincipal ChatUser user, HttpServletRequest request) {
+        if (user == null) {
+            return new SuccessOrErrorResult(false, "Вы не зашли в аккаунт");
+        }
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null){
+            new SecurityContextLogoutHandler().logout(request, null, auth);
+        }
+        SecurityContextHolder.getContext().setAuthentication(null);
+
+        return new SuccessOrErrorResult(userService.terminateUser(user), null);
     }
 
     @PostMapping(path = "/register", produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Object logout(@AuthenticationPrincipal ChatUser loggedInUser, @RequestBody UserCredentials credentials, HttpServletRequest request, HttpServletResponse response) {
         if (credentials.isDataValid()) {
             if (loggedInUser != null) {
-                return new LoginOrLogoutResult(false, "Вы уже зашли в аккаунт");
+                return new SuccessOrErrorResult(false, "Вы уже зашли в аккаунт");
             }
 
             ChatUser user = userService.getByUsername(credentials.getUsername());
             if (user != null) {
-                return new LoginOrLogoutResult(false, "Имя пользователя уже занято");
+                return new SuccessOrErrorResult(false, "Имя пользователя уже занято");
             }
 
             user = userService.registerNewUser(credentials.getUsername(), credentials.getPassword());
             UsernamePasswordAuthenticationToken authReq = new UsernamePasswordAuthenticationToken(user, credentials.getPassword());
             logInUser(request, response, authReq);
-            return new LoginOrLogoutResult(true, null);
+            return new SuccessOrErrorResult(true, null);
         }
-        return new LoginOrLogoutResult(false, "non-empty strings must be provided both for username and password");
+        return new SuccessOrErrorResult(false, "non-empty strings must be provided both for username and password");
     }
 
     @GetMapping(path = "/me", produces = MediaType.APPLICATION_JSON_VALUE)

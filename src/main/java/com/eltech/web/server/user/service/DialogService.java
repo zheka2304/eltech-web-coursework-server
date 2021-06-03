@@ -30,6 +30,7 @@ public class DialogService {
 
     @Transactional
     public Dialog getOrAddDialog(ChatUser user, String target) {
+        // if dialog already exists, just update and return it
         Dialog dialog = getDialog(user, target);
         if (dialog != null) {
             dialog.updateLastActivityTime();
